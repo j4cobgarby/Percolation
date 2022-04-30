@@ -154,6 +154,173 @@ def plot_fn(trials, n):
     plt.plot(x_vals, y_vals)
 
 
-mygrid = generate_grid(100, 0.6)
-display_grid(mygrid)
-find_yellow_path(mygrid, False, True)
+def create_wires(height, num_wires, poisson_breaks, poisson_connections):
+    # create breaks in wires
+    breaks = []
+    for i in range(0, num_wires - 2):
+        breaks.append([])
+        total = 0
+        while total < height:
+            gap = np.random.exponential(poisson_breaks)
+            total += gap
+            if total < height:
+                breaks[i].append(total)
+
+    # create connecting wires
+    connections = []
+    for i in range(0, num_wires - 1):
+        connections.append([])
+        total = 0
+        while total < height:
+            gap = np.random.exponential(poisson_connections)
+            total += gap
+            if total < height:
+                connections[i].append(total)
+
+    return breaks, connections
+
+
+def draw_wires(width, height, num_wires, breaks, connections):
+    plt.figure(figsize=(7, 7))
+    vertical_lines = np.arange(0, width, width / num_wires)
+    plt.vlines(vertical_lines, 0, height, colors="k")
+
+    for i in range(0, num_wires - 1):
+        plt.hlines(connections[i], width * i / num_wires, width * (i + 1) / num_wires, colors="k")
+
+    break_width = width / (4 * num_wires)
+    for i in range(0, num_wires - 2):
+        plt.hlines(breaks[i], width * (i + 1) / num_wires - break_width, width * (i + 1) / num_wires + break_width,
+                   colors="r", lw=1)
+
+    plt.plot()
+    plt.show()
+
+
+def draw_wires_reachable(width, height, num_wires, verticals, horizontals):
+    plt.figure(figsize=(7, 7))
+    for x in range(0, len(verticals)):
+        for y in range(0, len(verticals[x])):
+            if verticals[x][y][2] == 1:
+                plt.vlines(width * x / num_wires, verticals[x][y][0], verticals[x][y][1], colors="c")
+            else:
+                plt.vlines(width * x / num_wires, verticals[x][y][0], verticals[x][y][1], colors="k")
+
+    for x in range(0, len(horizontals)):
+        for y in range(0, len(horizontals[x])):
+            if horizontals[x][y][1] == 1:
+                plt.hlines(horizontals[x][y][0], width * x / num_wires, width * (x + 1) / num_wires, colors="c")
+            else:
+                plt.hlines(horizontals[x][y][0], width * x / num_wires, width * (x + 1) / num_wires, colors="k")
+
+    break_width = width / (4 * num_wires)
+    for i in range(0, num_wires - 2):
+        plt.hlines(breaks[i], width * (i + 1) / num_wires - break_width, width * (i + 1) / num_wires + break_width,
+                   colors="r", lw=1)
+
+    plt.plot()
+    plt.show()
+
+
+def power_horizontals(verticals, horizontals):
+    changed = False
+    for x in range(1, len(horizontals)):
+        for y in range(0, len(horizontals[x])):
+            if horizontals[x][y][1] == 0:
+                for i in range(0, len(verticals[x])):
+                    if verticals[x][i][1] > horizontals[x][y][0]:
+                        if verticals[x][i][2] == 1:
+                            horizontals[x][y][1] = 1
+                            changed = True
+                            break
+                        else:
+                            break
+                for i in range(0, len(verticals[x + 1])):
+                    if verticals[x + 1][i][1] > horizontals[x][y][0]:
+                        if verticals[x + 1][i][2] == 1:
+                            horizontals[x][y][1] = 1
+                            changed = True
+                            break
+                        else:
+                            break
+    return horizontals, changed
+
+
+def power_verticals(verticals, horizontals):
+    final_powered = False
+    for x in range(1, len(verticals)):
+        for y in range(0, len(verticals[x])):
+            if verticals[x][y][2] == 0:
+                for i in range(0, len(horizontals[x - 1])):
+                    if horizontals[x - 1][i][0] > verticals[x][y][0]:
+                        if horizontals[x - 1][i][0] < verticals[x][y][1]:
+                            if horizontals[x - 1][i][1] == 1:
+                                verticals[x][y][2] = 1
+                                if x == len(verticals) - 1:
+                                    final_powered = True
+                                break
+                        else:
+                            break
+                if x != len(verticals) - 1:
+                    for i in range(0, len(horizontals[x])):
+                        if horizontals[x][i][0] > verticals[x][y][0]:
+                            if horizontals[x][i][0] < verticals[x][y][1]:
+                                if horizontals[x][i][1] == 1:
+                                    verticals[x][y][2] = 1
+                                    break
+                            else:
+                                break
+    return verticals, final_powered
+
+
+def path_of_current(height, breaks, connections):
+    verticals = []
+    horizontals = []
+
+    verticals.append([[0, height, 1]])
+
+    for breaks_in_wire in breaks:
+        if len(breaks_in_wire) == 0:
+            verticals.append([[0, height, 0]])
+        else:
+            current_verticals = [[0, breaks_in_wire[0], 0]]
+            for i in range(0, len(breaks_in_wire) - 1):
+                current_verticals.append([breaks_in_wire[i], breaks_in_wire[i + 1], 0])
+            current_verticals.append([breaks_in_wire[-1], height, 0])
+            verticals.append(current_verticals)
+    verticals.append([[0, height, 0]])
+
+    current_horizontals = []
+    for split in connections[0]:
+        current_horizontals.append([split, 1])
+    horizontals.append(current_horizontals)
+
+    for column in connections[1:]:
+        current_horizontals = []
+        for split in column:
+            current_horizontals.append([split, 0])
+        horizontals.append(current_horizontals)
+
+    while True:
+        verticals, final_powered = power_verticals(verticals, horizontals)
+        if final_powered:
+            return True, verticals, horizontals
+
+        horizontals, changed_horiz = power_horizontals(verticals, horizontals)
+        if not changed_horiz:
+            return False, verticals, horizontals
+
+
+height = 200
+num_wires = 100
+width = 200
+break_rate = 4
+connect_rate = 5
+
+while True:
+    breaks, connections = create_wires(height, num_wires, break_rate, connect_rate)
+    reachable, verts, horiz = path_of_current(height, breaks, connections)
+    if reachable:
+        draw_wires_reachable(width, height, num_wires, verts, horiz)
+        break
+
