@@ -217,7 +217,7 @@ def draw_wires(height, num_wires, breaks, connections):
         plt.hlines(connections[i], i, i+1, colors="k")
 
     # break_width*2 is a nice width for the red lines that represent breaks in the wires
-    break_width = 1/6
+    break_width = 1/3
     # for each of the wires that aren't first or last
     for i in range(0, num_wires - 2):
         # draw horizontal lines on the wires where the breaks are
@@ -258,7 +258,7 @@ def draw_wires_reachable(num_wires, verticals, horizontals):
                 plt.hlines(horizontals[x][y][0], x, x + 1, colors="k")
 
     # draws each of the breaks (same as previous function)
-    break_width = 1/6
+    break_width = 1/3
     for i in range(0, num_wires - 2):
         plt.hlines(breaks[i], i+1 - break_width, i + 1 + break_width, colors="r", lw=1)
 
