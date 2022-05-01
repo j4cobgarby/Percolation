@@ -154,23 +154,45 @@ def plot_fn(trials, n):
     plt.plot(x_vals, y_vals)
 
 
+# function to create the breaks and connections lists using the rest of the data
 def create_wires(height, num_wires, poisson_breaks, poisson_connections):
-    # create breaks in wires
+    # this section creates list of breaks in wires
+    # initializes the list
     breaks = []
+    # for each of the wires except the first and last (since breaks in those wouldn't matter)
     for i in range(0, num_wires - 2):
+        # add an empty list to the list
         breaks.append([])
+        # get a running total starting at 0 (representing the bottom of the wire)
         total = 0
+        # until we pass the top of the wire
         while total < height:
+            # get a random exponential as the gap between the previous break and the next one
             gap = np.random.exponential(poisson_breaks)
+            # add it to the total
             total += gap
+            # if you're still on the wire
             if total < height:
+                # add the y coord of the break to the list
                 breaks[i].append(total)
 
-    # create connecting wires
+    # some notes:
+    # We don't add breaks in the first or last wires as the whole first wire is powered anyway and therefore adding
+    # breaks wouldn't change anything, and in the last wire, we only care if any point of it is powered.
+    # Also, while it seems pointless to check if total < height again inside the while loop, if I didn't do that then
+    # it would add an extra break to the list that would be greater than the height. I could fix this by then removing
+    # the last one afterwards, but that would make the code less readable (although slightly more efficient).
+
+    # this section creates list of connections between wires
+    # initializes list
     connections = []
+    # for each gap between the wires (so number of wires - 1)
     for i in range(0, num_wires - 1):
+        # add empty list
         connections.append([])
+        # make running total
         total = 0
+        # very similar to the previous one
         while total < height:
             gap = np.random.exponential(poisson_connections)
             total += gap
@@ -180,88 +202,140 @@ def create_wires(height, num_wires, poisson_breaks, poisson_connections):
     return breaks, connections
 
 
-def draw_wires(width, height, num_wires, breaks, connections):
+# function to draw the wires and breaks on a graph using the breaks and connections
+def draw_wires(height, num_wires, breaks, connections):
+    # makes the graph a nice size
     plt.figure(figsize=(7, 7))
-    vertical_lines = np.arange(0, width, width / num_wires)
+    # gets x coords for vertical wires and puts them in a numpy array
+    vertical_lines = np.arange(0, num_wires, 1)
+    # plots the vertical wires
     plt.vlines(vertical_lines, 0, height, colors="k")
 
+    # for each of the gaps between the wires
     for i in range(0, num_wires - 1):
-        plt.hlines(connections[i], width * i / num_wires, width * (i + 1) / num_wires, colors="k")
+        # draw horizontal lines on the y coords of each of the connections going between the wires
+        plt.hlines(connections[i], i, i+1, colors="k")
 
-    break_width = width / (4 * num_wires)
+    # break_width*2 is a nice width for the red lines that represent breaks in the wires
+    break_width = 1/6
+    # for each of the wires that aren't first or last
     for i in range(0, num_wires - 2):
-        plt.hlines(breaks[i], width * (i + 1) / num_wires - break_width, width * (i + 1) / num_wires + break_width,
-                   colors="r", lw=1)
+        # draw horizontal lines on the wires where the breaks are
+        plt.hlines(breaks[i], i+1 - break_width, i+1 + break_width, colors="r", lw=1)
 
+    # plot and show the graph
     plt.plot()
     plt.show()
 
 
-def draw_wires_reachable(width, height, num_wires, verticals, horizontals):
+# similar to the previous function but instead uses vertical segments and horizontal segments, and also
+# draws any of the wires that are assigned as reachable in cyan rather than black
+def draw_wires_reachable(num_wires, verticals, horizontals):
+    # makes figure a nice size
     plt.figure(figsize=(7, 7))
+    # for each of the vertical wires
     for x in range(0, len(verticals)):
+        # for each of the segments of vertical wire in the current wire
         for y in range(0, len(verticals[x])):
+            # if it's powered
             if verticals[x][y][2] == 1:
-                plt.vlines(width * x / num_wires, verticals[x][y][0], verticals[x][y][1], colors="c")
+                # draw it in cyan
+                plt.vlines(x, verticals[x][y][0], verticals[x][y][1], colors="c")
             else:
-                plt.vlines(width * x / num_wires, verticals[x][y][0], verticals[x][y][1], colors="k")
+                # if it's not powered draw it in black
+                plt.vlines(x, verticals[x][y][0], verticals[x][y][1], colors="k")
 
+    # for each of the gaps
     for x in range(0, len(horizontals)):
+        # for each of the horizontal wires in the gap
         for y in range(0, len(horizontals[x])):
+            # if it's powered
             if horizontals[x][y][1] == 1:
-                plt.hlines(horizontals[x][y][0], width * x / num_wires, width * (x + 1) / num_wires, colors="c")
+                # draw it in cyan
+                plt.hlines(horizontals[x][y][0], x, x + 1, colors="c")
             else:
-                plt.hlines(horizontals[x][y][0], width * x / num_wires, width * (x + 1) / num_wires, colors="k")
+                # otherwise draw it in black
+                plt.hlines(horizontals[x][y][0], x, x + 1, colors="k")
 
-    break_width = width / (4 * num_wires)
+    # draws each of the breaks (same as previous function)
+    break_width = 1/6
     for i in range(0, num_wires - 2):
-        plt.hlines(breaks[i], width * (i + 1) / num_wires - break_width, width * (i + 1) / num_wires + break_width,
-                   colors="r", lw=1)
+        plt.hlines(breaks[i], i+1 - break_width, i + 1 + break_width, colors="r", lw=1)
 
+    # plot and show graph
     plt.plot()
     plt.show()
 
 
+# this function looks at all the horizontal wires, sees if they should be powered, and if so, powers them
 def power_horizontals(verticals, horizontals):
+    # changed sees if you end up changing any; if you don't turn any wires on then you are stuck forever and should stop
     changed = False
+    # for each of the gaps (except the first, which all of them will be powered anyway since they're directly
+    # connected to the first vertical wire which is powered)
     for x in range(1, len(horizontals)):
+        # for all the horizontal wires in the gap
         for y in range(0, len(horizontals[x])):
+            # if it's not powered
             if horizontals[x][y][1] == 0:
+                # go through each of the vertical segments to the left
                 for i in range(0, len(verticals[x])):
+                    # loop until you find the one that the horizontal one is connected to
                     if verticals[x][i][1] > horizontals[x][y][0]:
+                        # if that vertical segment is powered
                         if verticals[x][i][2] == 1:
+                            # then power the horizontal wire
                             horizontals[x][y][1] = 1
+                            # and since you've powered a wire, the state has changed, and we need to keep going
                             changed = True
-                            break
-                        else:
-                            break
+                        # then either way stop looping, since any of the next vertical segments won't be connected
+                        break
+
+                # does the same as the previous section but checking the vertical wire segment on the right instead
                 for i in range(0, len(verticals[x + 1])):
                     if verticals[x + 1][i][1] > horizontals[x][y][0]:
                         if verticals[x + 1][i][2] == 1:
                             horizontals[x][y][1] = 1
                             changed = True
-                            break
-                        else:
-                            break
+                        break
+
     return horizontals, changed
 
 
+# this function looks at each of the vertical segments, sees if they should get powered, and if so, powers them
 def power_verticals(verticals, horizontals):
+    # this is used to see if the final wire has been powered
     final_powered = False
+    # for each of the long vertical wires (except the first which is always powered)
     for x in range(1, len(verticals)):
+        # for each of the vertical wire segments
         for y in range(0, len(verticals[x])):
+            # if the current segment is unpowered
             if verticals[x][y][2] == 0:
+                # go through each of the horizontal wire segments to the left
                 for i in range(0, len(horizontals[x - 1])):
+                    # if the current horizontal segment is above the bottom part of the wire
                     if horizontals[x - 1][i][0] > verticals[x][y][0]:
+                        # and it's below the top part of the wire
                         if horizontals[x - 1][i][0] < verticals[x][y][1]:
+                            # and it's powered
                             if horizontals[x - 1][i][1] == 1:
+                                # then power the vertical segment
                                 verticals[x][y][2] = 1
+                                # if it's in the final wire
                                 if x == len(verticals) - 1:
+                                    # then the final wire is powered
                                     final_powered = True
+                                # since the wire is powered, we don't need to check any of the other horizontal wires
                                 break
+                        # if it's above the top part of the wire, we've gone past and don't need to check any others
                         else:
                             break
+
+                # here we do the same thing but for the horizontal wires coming from the right - first however,
+                # we need to check that this isn't the last wire, otherwise we'd go outside the index range
                 if x != len(verticals) - 1:
+                    # then we basically just do the same thing
                     for i in range(0, len(horizontals[x])):
                         if horizontals[x][i][0] > verticals[x][y][0]:
                             if horizontals[x][i][0] < verticals[x][y][1]:
@@ -270,57 +344,98 @@ def power_verticals(verticals, horizontals):
                                     break
                             else:
                                 break
+
     return verticals, final_powered
 
 
+# this function determines whether a given set of breaks and connections has a path going from left to right
 def path_of_current(height, breaks, connections):
+    # verticals and horizontals are similar to breaks and connections, with a slight difference.
+    # for horizontals, all it does is add a boolean to each connection to represent whether the wire is powered.
+    # for verticals, rather than storing the breaks, it instead stores the segments of wire that are formed from
+    # each of the breaks - for example, if there was one break right in the middle, then verticals would have two
+    # wires with start and end points, and also a boolean to represent whether the wire is on or off.
+
+    # first off, I convert the breaks and connections to verticals and horizontals
+    # initialise lists
     verticals = []
     horizontals = []
 
+    # the first wire will always be [0, height, 1], since it has no breaks, so it goes from 0 to the height, and
+    # it's always powered.
     verticals.append([[0, height, 1]])
 
+    # for each of breaks in a specific wire
     for breaks_in_wire in breaks:
+        # if there are no breaks in our wire
         if len(breaks_in_wire) == 0:
+            # then our segment is the whole wire
             verticals.append([[0, height, 0]])
         else:
+            # otherwise, the first segment will go from 0 to our first break
             current_verticals = [[0, breaks_in_wire[0], 0]]
+            # then each of the next segments will just be from the current break to the next
             for i in range(0, len(breaks_in_wire) - 1):
                 current_verticals.append([breaks_in_wire[i], breaks_in_wire[i + 1], 0])
+            # except the last, which goes from the last break to the height
             current_verticals.append([breaks_in_wire[-1], height, 0])
+            # then we add all the segments of wire to our verticals
             verticals.append(current_verticals)
+    # the last wire, similar to the first, has no breaks
     verticals.append([[0, height, 0]])
 
+    # this is identical to the next part, except each horizontal wire connected to the first vertical one
+    # can automatically start off powered, so this saves a bit of time.
     current_horizontals = []
-    for split in connections[0]:
-        current_horizontals.append([split, 1])
+    for wire in connections[0]:
+        current_horizontals.append([wire, 1])
     horizontals.append(current_horizontals)
 
-    for column in connections[1:]:
+    # for each of the gaps between the wires (except for the first for the reasons above)
+    for gap in connections[1:]:
         current_horizontals = []
-        for split in column:
-            current_horizontals.append([split, 0])
+        # for each of the horizontal wires in the gap
+        for wire in gap:
+            # add the y coord of this wire, and 0 (because it's off), to a temporary list
+            current_horizontals.append([wire, 0])
+        # then add this temporary list to the list of lists of horizontal wires
         horizontals.append(current_horizontals)
 
+    # now we can start checking if we can reach the end!
+    # we keep repeating until one of two conditions are met - if the final wire is powered, then we are done and don't
+    # need to check and more wires. However, if no new horizontal wires are powered, then that means no new vertical
+    # wires will be powered, so no new wires will ever be powered. Therefore, the end is not reachable. If neither
+    # of these are true then we need to keep looking.
     while True:
+        # powers any vertical wires that needs powering, and gets whether the final wire is powered.
         verticals, final_powered = power_verticals(verticals, horizontals)
+        # if it is, then we are done, and can return the wires (we could also return "True" if that will be helpful)
         if final_powered:
             return True, verticals, horizontals
 
-        horizontals, changed_horiz = power_horizontals(verticals, horizontals)
-        if not changed_horiz:
+        # then powers any horizontal wires that need powering, and whether or not the board changed state
+        horizontals, changed = power_horizontals(verticals, horizontals)
+        # if it didn't change, then we are stuck, so we give up and return what wires we did end up powering.
+        if not changed:
             return False, verticals, horizontals
 
 
+# some example variables
+# height is how tall you want each wire to be
 height = 200
+# num_wires is how many vertical wires across the board you want
 num_wires = 100
-width = 200
-break_rate = 4
+# break_rate is the random poisson variable used to see how frequently there should be breaks in the wires
+break_rate = 4.8
+# similarly connect_rate determines how frequently there should be connections between the wires
 connect_rate = 5
+# (the smaller the number, the more frequently it will happen)
 
+# this here just keeps trying random boards until it finds one that can reach the end, then draws it.
+# I made the break rate slightly faster than the connect rate, so it will look more interesting.
 while True:
     breaks, connections = create_wires(height, num_wires, break_rate, connect_rate)
     reachable, verts, horiz = path_of_current(height, breaks, connections)
     if reachable:
-        draw_wires_reachable(width, height, num_wires, verts, horiz)
+        draw_wires_reachable(num_wires, verts, horiz)
         break
-
