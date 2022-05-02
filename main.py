@@ -32,13 +32,11 @@ def display_grid(grid):
 
 
 def generate_grid(grid_size, p_yellow):
-    """
-    Given grid size and probability of a square being yellow, this outputs
-    a numpy array of booleans, with true representing yellow
-    """
-
+    # Generates a grid of random numbers - if p_yellow isn't 0, it will set them as booleans, otherwise it
+    # will keep them as uniformly random numbers from 0 to 1
     colours = np.random.rand(grid_size, grid_size)  # Initialise 2d array of random numbers between 0 and 1
-    colours = colours < p_yellow  # Sets each cell to 1 if it's less than p_yellow, else 0.
+    if p_yellow != 0:
+        colours = colours < p_yellow  # Sets each cell to 1 if it's less than p_yellow, else 0.
     return colours
 
 
@@ -152,7 +150,59 @@ def plot_fn(trials, n):
     y_vals = [fn(trials, n, p) for p in x_vals]
 
     plt.plot(x_vals, y_vals)
+    
 
+def narrow_range(lower, upper, grid):
+    mid = lower + (upper-lower)/2
+    grid = grid < mid
+    if find_path_across(grid) == True:
+        upper = mid
+    else:
+        lower = mid
+    return lower, upper
+
+
+# this function only works on a grid of uniformly random numbers, not booleans!
+def find_crit_point(grid, precision):
+    # We know from testing that the critical point was somewhere around 0.59, definitely between 0.55 and 0.65
+    # so our first upper and lower bounds will be those, and we will shrink it down.
+    # accuracy represents how many times we should narrow our range
+    lower_bound = 0.55
+    upper_bound = 0.65
+    for i in range(0, precision):
+        lower_bound, upper_bound = narrow_range(lower_bound, upper_bound, grid)
+
+    return lower_bound + (upper_bound-lower_bound)/2
+
+
+def test_crit_points(samples, gridsize, precision):
+    results = np.zeros(samples)
+    for i in range(samples):
+        grid = generate_grid(gridsize, 0)
+        results[i] = find_crit_point(grid, precision)
+    estimate = np.average(results)
+    return results, estimate
+
+
+def plot_test_results_scatter():
+    results, estimate = test_crit_points(200,200,13)
+    plt.scatter(np.arange(0, len(results), 1), np.sort(results), c=np.sort(results), cmap="plasma")
+    plt.hlines(estimate, 0, len(results), colors="r", lw=0.7, label=str(estimate))
+    plt.plot()
+    plt.show()
+
+
+def plot_test_results_boxes():
+    results_10 = test_crit_points(100, 10, 12)[0]
+    results_50 = test_crit_points(100, 50, 12)[0]
+    results_100 = test_crit_points(100, 100, 12)[0]
+    plt.boxplot([results_10, results_50, results_100])
+    plt.plot()
+    plt.show()
+
+
+plot_test_results_scatter()
+plot_test_results_boxes()
 
 # function to create the breaks and connections lists using the rest of the data
 def create_wires(height, num_wires, poisson_breaks, poisson_connections):
