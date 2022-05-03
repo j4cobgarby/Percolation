@@ -561,3 +561,54 @@ while True:
     if reachable:
         draw_wires_reachable(num_wires, verts, horiz)
         break
+
+def wire_percolation(height, num_wires, break_rate, connect_rate):
+    breaks, connections = create_wires(height, num_wires, break_rate, connect_rate)
+    return path_of_current(height, breaks, connections)[0]
+
+def wires_Fn(trials, height, num_wires, break_rate, connect_rate):
+    '''
+    This function finds Fn (the probability of a path from left to right) for a given grid size and probability of yellows.
+    This is an estimate based on the number of successful vs unsuccessful trials.
+    '''
+    # we initialise a count function to note the trials which succeed in finding a path
+    count = 0
+    
+    # we iterate 'trials' number of times, each time creating a grid and checking whether there is a path from left to right
+    for i in range(trials):
+        # when there is a path we increase 'count' by 1
+        if wire_percolation(height, num_wires, break_rate, connect_rate):
+            count += 1
+    # we return the probability of finding a path, the number of successful trials divided by the total number of trials
+    return 1.0 * count/trials
+
+def intercept_critical_point(trials, h1, h2, num_wires, connect_rate):
+    
+    # We find Fn at all 3 n's for 20 equally spaced probabilities between 0.5 and 0.7
+    x_vals = np.linspace(2, 8, 20)
+    y_vals1 = np.array([wires_Fn(trials, h1, num_wires, break_rate, connect_rate) for break_rate in x_vals])
+    y_vals2 = np.array([wires_Fn(trials, h2, num_wires, break_rate, connect_rate) for break_rate in x_vals])
+    
+    # we create two interpolated splines to fit the values of Fn to smooth curves
+    spline1 = inter.InterpolatedUnivariateSpline(x_vals, y_vals1)
+    spline2 = inter.InterpolatedUnivariateSpline(x_vals, y_vals2)
+    
+    # This function find the absolute value of the difference between our two splines at a given point x
+    def difference(x):
+        return spline1(x) - spline2(x)
+    
+    # we use the 'fsolve' method to find the roots of our difference function starting from our estimate of 0.58
+    # the roots of this function are when our two splines are equal - the intercept of the two.
+    # This is our estimate for Pc
+    intercept = opt.brentq(difference, 4.8, 5.2)
+    
+    # Plot of all three curves of Fn and our estimate of Pc
+    plt.plot(x_vals, y_vals1, color='green', label=f'$height={h1}$')
+    plt.plot(x_vals, y_vals2, color='cyan', label=f'$height={h2}$')
+    plt.plot(intercept, spline1(intercept),'o', color = 'green')
+    plt.text(intercept+0.018, spline1(intercept), f"$Critical Point = {intercept[0]:.2f}$", ha="center")
+    plt.axvline(intercept, ls='--')
+    plt.xlabel("Poisson Break Rate")
+    plt.ylabel("Probability of Percolation")
+    plt.title("Probability of Percolation for Wire Model")
+    plt.legend()
