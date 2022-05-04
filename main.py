@@ -542,7 +542,7 @@ def path_of_current(height, breaks, connections):
             return False, verticals, horizontals
 
 
-# some example variables
+"""# some example variables
 # height is how tall you want each wire to be
 height = 200
 # num_wires is how many vertical wires across the board you want
@@ -560,7 +560,7 @@ while True:
     reachable, verts, horiz = path_of_current(height, breaks, connections)
     if reachable:
         draw_wires_reachable(num_wires, verts, horiz)
-        break
+        break"""
 
 def wire_percolation(height, num_wires, break_rate, connect_rate):
     breaks, connections = create_wires(height, num_wires, break_rate, connect_rate)
@@ -612,3 +612,179 @@ def intercept_critical_point(trials, h1, h2, num_wires, connect_rate):
     plt.ylabel("Probability of Percolation")
     plt.title("Probability of Percolation for Wire Model")
     plt.legend()
+   
+
+# Continuous percolation Experimentation
+# Function that generates a grid of "on" and "off" (or yellow and blue) dots that follow specific restraints:
+# Choose a uniformly random x and y coordinate in the grid, and draw a dot with radius rad.
+# If the dot is not overlapping any others, it chooses to be on with probability p, and off with 1-p
+# If it's only overlapping dots of the same colour, it will be the same colour as them
+# If it's overlapping dots of different colours, then it's an invalid position, and chooses a new spot
+def create_dots_clumping(width, height, p, rad, num_dots):
+    tries = 0
+    # initialize the array of coordinates of dots, and their states (will be like [xcoord, ycoord, on/off])
+    dot_coords = np.zeros((num_dots, 3))
+    # we increase the number of dots drawn until we reach the desired amount, so start at 0 and stop when we're there
+    current_dots = 0
+    while current_dots < num_dots:
+        # Start off with it being colourless
+        colour = None
+        # Clash is whether or not it's overlapping 2 different colours; it starts off not
+        clash = False
+        # generates a random point in the grid
+        x, y = np.random.uniform(0,width), np.random.uniform(0,height)
+        # Checking each of the previous dots
+        for i in range(current_dots):
+            # this is for optimisation - if the squares containing the dots overlap
+            if abs(x - dot_coords[i][0]) + abs(y - dot_coords[i][1]) < 2*1.42*rad:
+                # If the distance between the two dots is less than two radii (square both sides since sqrt is slow)
+                if pow((x - dot_coords[i][0]), 2) + pow((y - dot_coords[i][1]), 2) < 4 * pow(rad, 2):
+                    # If the dot is on
+                    if dot_coords[i][2] == 1:
+                        # and if the colour isnt already supposed to be off
+                        if colour != 0:
+                            # then the colour should now be on
+                            colour = 1
+                        # otherwise there's a clash, and we dont need to check anything else - just break and try again
+                        else:
+                            clash = True
+                            break
+                    # otherwise the dot is off
+                    else:
+                        # so same thing but in reverse
+                        if colour != 1:
+                            colour = 0
+                        else:
+                            clash = True
+                            break
+        # so long as it didnt clash, we can add it
+        if not clash:
+            # if we didnt assign it a colour already, then we choose it to be on with probability p
+            if colour is None:
+                colour = np.random.uniform() < p
+            # then add the dot and it's colour to the dot coords
+            dot_coords[current_dots] = [x, y, colour]
+            # and since there's one more dot drawn, increase the counter by 1
+            current_dots += 1
+        tries += 1
+    print(tries)
+    return dot_coords
+# this function is unfortunately extremely slow in its current state, due to the fact that each time it tries
+# to add a dot it needs to check every other dot already drawn and do a distance function to see how close it is.
+# to optimise it, I could do a couple of different things - one idea is instead of checking
+
+
+def create_dots(width, height, num_dots)
+
+
+# this takes graph dimensions, any number of arrays of dots, a list of colours and a radius size, and draws the dots
+# on a graph, with the colours corresponding to list of lists of dots.
+def draw_dots(width, height, dots_array, colours_array, rad):
+    # gets graph stuff
+    figure, axes = plt.subplots()
+    # makes the graph background dark blue
+    axes.set_facecolor('navy')
+
+    # draws a circle in the correct colour at the correct coordinate
+    for i, dots in enumerate(dots_array):
+        for dot in dots:
+            c = plt.Circle((dot[0], dot[1]), rad, color=colours_array[i])
+            axes.add_artist(c)
+
+    # makes the graph a good size
+    axes.set_xlim(0, width)
+    axes.set_ylim(0, height)
+    axes.set_aspect(1.0)
+    plt.show()
+
+
+# For the purposes of finding a path from left to right, the off dots dont matter, so it would be helpful to trim
+# them out of the list and only keep the useful data. (easy enough to understand)
+def yellows_only(dots):
+    yellows = []
+    for dot in dots:
+        if dot[2] == 1:
+            yellows.append([dot[0], dot[1]])
+    return yellows
+
+
+# takes a list of currently unreachable dots, reachable dots, and the dots that were just added (and the radius),
+# and sees which of the unreachable dots are reachable from the just added dots, and removes them from the unreachables
+# and adds them to the reachables, and then changes it so these dots are the new "last added" dots.
+def add_new_dots(unlinked_dots, linked_dots, last_added, rad):
+    # I cant delete them from the array during the search since that would change how many items are in the array,
+    # so I need to delete them after I've done all of the searching.
+    to_delete = []
+    new_dots = []
+    # for each of the dots that arent yet reached
+    for i in range(len(unlinked_dots)):
+        # for each of the dots that were last added
+        for j in range(len(last_added)):
+            # if the current unlinked one is touching the current last powered
+            if (unlinked_dots[i][0] - last_added[j][0]) ** 2 + (
+                    unlinked_dots[i][1] - last_added[j][1]) ** 2 < 4 * rad ** 2:
+                # add the unlinked dot to the linked dots
+                linked_dots.append(unlinked_dots[i])
+                # and also to the a temporary list that will become the last powered
+                new_dots.append(unlinked_dots[i])
+                # and add it's index to the array that will later bin it from the unlinked dots
+                to_delete.append(i)
+                # then since it's powered, we dont care if any other powered ones are touching it, so move on
+                break
+    # for each of the indexes that need deleting (in reverse order so it wont shift the index of other ones in the list)
+    for i in to_delete[::-1]:
+        # delete the corresponding dot in the unlinked dots
+        del unlinked_dots[i]
+    return unlinked_dots, linked_dots, new_dots
+
+
+# this function determines if there's a path of dots on a grid of "on" dots with a radius rad
+def yellow_dot_path(width, height, dots, rad):
+    # all dots start off unlinked
+    unlinked_dots = dots
+
+    # we start off by adding all dots that are touching the line x=0 to our linked dots - these are ones where the
+    # x coordinate is < radius - so do a very similar thing to add_new_dots but taking this into account.
+    linked_dots = []
+    last_added = []
+    to_remove = []
+
+    # for each of the unlinked dots
+    for i in range(len(unlinked_dots)):
+        # if the dot is touching the left side
+        if dots[i][0] < rad:
+            # add it to linked dots
+            linked_dots.append(unlinked_dots[i])
+            # add it to last added
+            last_added.append(unlinked_dots[i])
+            # delete it from unlinked dots later
+            to_remove.append(i)
+
+    # delete all of the newly linked dots from unlinked dots
+    for i in to_remove[::-1]:
+        del unlinked_dots[i]
+
+    # you start off not reaching the end
+    reached_end = False
+    # while there are still unexplored dots and the end hasn't been reached
+    while len(last_added) != 0 and not reached_end:
+        # update the unlinked dots, linked dots, and last added dots
+        unlinked_dots, linked_dots, last_added = add_new_dots(unlinked_dots, linked_dots, last_added, rad)
+        # for each of the newly added dots
+        for coords in last_added:
+            # if any of them are touching the edge of the grid
+            if coords[0] > width - rad:
+                # then it's reachable!
+                reached_end = True
+
+    # draw the reached dots in gold, and the unreached ones in crimson, just to demonstrate the function works
+    draw_dots(width, height, [unlinked_dots, linked_dots], ["crimson", "gold"], rad)
+
+
+width, height = 100, 100
+p_yellow = 0.55
+dot_radius = 1.5
+num_dots = 15000
+
+dots = yellows_only(create_dots_clumping(width, height, p_yellow, dot_radius, num_dots))
+yellow_dot_path(width, height, dots, dot_radius)
