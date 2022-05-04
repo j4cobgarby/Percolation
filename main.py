@@ -674,7 +674,13 @@ def create_dots_clumping(width, height, p, rad, num_dots):
 # to optimise it, I could do a couple of different things - one idea is instead of checking
 
 
-def create_dots(width, height, num_dots)
+# this one just makes a grid of randomly placed dots
+def create_dots_unif(width, height, num_dots):
+    dot_coords = []
+    for i in range(num_dots):
+        # add a random coordinate to dot_coords, num_dots times
+        dot_coords.append([np.random.uniform(0,width), np.random.uniform(0,height)])
+    return dot_coords
 
 
 # this takes graph dimensions, any number of arrays of dots, a list of colours and a radius size, and draws the dots
@@ -782,9 +788,12 @@ def yellow_dot_path(width, height, dots, rad):
 
 
 width, height = 100, 100
-p_yellow = 0.55
 dot_radius = 1.5
 num_dots = 15000
 
-dots = yellows_only(create_dots_clumping(width, height, p_yellow, dot_radius, num_dots))
+#p_yellow = 0.55
+#dots = yellows_only(create_dots_clumping(width, height, p_yellow, dot_radius, num_dots))
+#yellow_dot_path(width, height, dots, dot_radius)
+
+dots = create_dots_unif(width,height,num_dots)
 yellow_dot_path(width, height, dots, dot_radius)
