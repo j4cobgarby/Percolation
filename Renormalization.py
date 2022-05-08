@@ -16,9 +16,6 @@ def increment_binary_array(array):
         if item == 2:
             # then set it as a 0, and move to the next digit
             array[i] = 0.0
-    # if all bits were 1, then you can't increase it by 1. I could just leave it and it would return all 0s,
-    # but this is more helpful
-    raise OverflowError("Not enough bits!")
 
 
 def renormalization_approximate(gridsize):
