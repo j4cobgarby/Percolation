@@ -1,15 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# function that takes a numpy array of 0s and 1s, and interprets them as a binary number and adds 1
+# function that takes a numpy array of 0s and 1s, interprets them as a binary number, and adds 1
 def increment_binary_array(array):
+    # gets each of the indices and corresponding items in an array
     for i, item in enumerate(array):
+        # increases the current digit by 1
         item += 1
+        # if you flipped a 0 to 1
         if item == 1:
+            # then there's no overflow from this addition, so we can return it
             array[i] = item
             return array
+        # if you increased a 1 to a 2
         if item == 2:
+            # then set it as a 0, and move to the next digit
             array[i] = 0.0
+    # if all bits were 1, then you can't increase it by 1. I could just leave it and it would return all 0s,
+    # but this is more helpful
+    raise OverflowError("Not enough bits!")
 
 
 def renormalization_approximate(gridsize):
@@ -132,7 +141,9 @@ def find_path_across(grid):
     # Return False if after no further reachable path is found and we have not reached the right hand side of the grid
     return False
 
+# Here we call the funciton for each grid size from 2 to 5, and plot the corresponding polynomials on a graph from x=0 to 1.
 renormalization_approximate(2)
 renormalization_approximate(3)
 renormalization_approximate(4)
+renormalization_approximate(5)
 plt.show()
