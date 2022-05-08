@@ -671,10 +671,11 @@ def create_dots_clumping(width, height, p, rad, num_dots):
     return dot_coords
 # this function is unfortunately extremely slow in its current state, due to the fact that each time it tries
 # to add a dot it needs to check every other dot already drawn and do a distance function to see how close it is.
-# to optimise it, I could do a couple of different things - one idea is instead of checking
 
+# because this model is so slow, we could instead just uniformly draw yellow dots on the grid and see whether there's
+# a path that only uses them going from left to right:
 
-# this one just makes a grid of randomly placed dots
+# function that generates "num_dots" many random x and y coordinates
 def create_dots_unif(width, height, num_dots):
     dot_coords = []
     for i in range(num_dots):
@@ -691,13 +692,15 @@ def draw_dots(width, height, dots_array, colours_array, rad):
     # makes the graph background dark blue
     axes.set_facecolor('navy')
 
-    # draws a circle in the correct colour at the correct coordinate
+    # draws a circle in the correct colour at the correct coordinate for each of the dots
     for i, dots in enumerate(dots_array):
         for dot in dots:
+            # creates a circle at the specified coordinate with the right radius and colour
             c = plt.Circle((dot[0], dot[1]), rad, color=colours_array[i])
+            # then adds it to the axes
             axes.add_artist(c)
 
-    # makes the graph a good size
+    # makes the graph a good size and shows it
     axes.set_xlim(0, width)
     axes.set_ylim(0, height)
     axes.set_aspect(1.0)
